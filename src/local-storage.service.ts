@@ -14,6 +14,7 @@ const LOCAL_STORAGE_NOT_SUPPORTED: string = 'LOCAL_STORAGE_NOT_SUPPORTED';
 @Injectable()
 export class LocalStorageService {
     public isSupported: boolean = false;
+    private fallbackToCookies: boolean = false;
 
     public errors$: Observable<string>;
     public removeItems$: Observable<ILocalStorageEvent>;
@@ -37,7 +38,7 @@ export class LocalStorageService {
         @Inject('LOCAL_STORAGE_SERVICE_CONFIG') config: ILocalStorageServiceConfig,
         private _cookieService: CookieService
     ) {
-        let { notifyOptions, prefix, storageType } = config;
+        let { notifyOptions, prefix, storageType, fallbackToCookies } = config;
 
         if (notifyOptions != null) {
             let { setItem, removeItem } = notifyOptions;
@@ -48,6 +49,9 @@ export class LocalStorageService {
         }
         if (storageType != null) {
             this.setStorageType(storageType);
+        }
+        if (fallbackToCookies != null) {
+            this.fallbackToCookies = fallbackToCookies;
         }
 
         this.errors$ = new Observable<string>((observer: Subscriber<string>) => this.errors = observer).share();
@@ -75,7 +79,9 @@ export class LocalStorageService {
 
         if (!this.isSupported) {
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
-            this._cookieService.removeAll();
+            if (this.fallbackToCookies) {
+                this._cookieService.removeAll();
+            }
             return false;
         }
 
@@ -102,6 +108,9 @@ export class LocalStorageService {
     public get<T>(key: string): T {
         if (!this.isSupported) {
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
+            if (!this.fallbackToCookies) {
+                return null;
+            }
             let item = this._cookieService.get(key);
             if (!item || item === 'null') {
                 return null;
@@ -193,10 +202,14 @@ export class LocalStorageService {
         }
 
         if (!this.isSupported) {
-            // Store in cookie if not supported
-            this._cookieService.put(key, value);
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
-            return true;
+            // Store in cookie if not supported
+            if (this.fallbackToCookies) {
+                this._cookieService.put(key, value);
+                return true;
+            }
+            
+            return false;
         }
 
         try {

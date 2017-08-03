@@ -5,4 +5,5 @@ export interface ILocalStorageServiceConfig {
     notifyOptions?: INotifyOptions;
     prefix?: string;
     storageType?: 'sessionStorage' | 'localStorage';
+    fallbackToCookies?: boolean;
 }

@@ -23,6 +23,7 @@ var LocalStorageService = (function () {
         var _this = this;
         this._cookieService = _cookieService;
         this.isSupported = false;
+        this.fallbackToCookies = false;
         this.notifyOptions = {
             setItem: false,
             removeItem: false
@@ -33,7 +34,7 @@ var LocalStorageService = (function () {
         this.removeItems = new Subscriber_1.Subscriber();
         this.setItems = new Subscriber_1.Subscriber();
         this.warnings = new Subscriber_1.Subscriber();
-        var notifyOptions = config.notifyOptions, prefix = config.prefix, storageType = config.storageType;
+        var notifyOptions = config.notifyOptions, prefix = config.prefix, storageType = config.storageType, fallbackToCookies = config.fallbackToCookies;
         if (notifyOptions != null) {
             var setItem = notifyOptions.setItem, removeItem = notifyOptions.removeItem;
             this.setNotify(!!setItem, !!removeItem);
@@ -43,6 +44,9 @@ var LocalStorageService = (function () {
         }
         if (storageType != null) {
             this.setStorageType(storageType);
+        }
+        if (fallbackToCookies != null) {
+            this.fallbackToCookies = fallbackToCookies;
         }
         this.errors$ = new Observable_1.Observable(function (observer) { return _this.errors = observer; }).share();
         this.removeItems$ = new Observable_1.Observable(function (observer) { return _this.removeItems = observer; }).share();
@@ -64,7 +68,9 @@ var LocalStorageService = (function () {
         var testRegex = !!regularExpression ? new RegExp(regularExpression) : new RegExp('');
         if (!this.isSupported) {
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
-            this._cookieService.removeAll();
+            if (this.fallbackToCookies) {
+                this._cookieService.removeAll();
+            }
             return false;
         }
         var prefixLength = this.prefix.length;
@@ -88,6 +94,9 @@ var LocalStorageService = (function () {
     LocalStorageService.prototype.get = function (key) {
         if (!this.isSupported) {
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
+            if (!this.fallbackToCookies) {
+                return null;
+            }
             var item_1 = this._cookieService.get(key);
             if (!item_1 || item_1 === 'null') {
                 return null;
@@ -179,10 +188,13 @@ var LocalStorageService = (function () {
             value = JSON.stringify(value);
         }
         if (!this.isSupported) {
-            // Store in cookie if not supported
-            this._cookieService.put(key, value);
             this.warnings.next(LOCAL_STORAGE_NOT_SUPPORTED);
-            return true;
+            // Store in cookie if not supported
+            if (this.fallbackToCookies) {
+                this._cookieService.put(key, value);
+                return true;
+            }
+            return false;
         }
         try {
             if (this.webStorage) {

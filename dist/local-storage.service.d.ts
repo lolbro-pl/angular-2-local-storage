@@ -6,6 +6,7 @@ import { CookieService } from 'angular2-cookie/core';
 export declare class LocalStorageService {
     private _cookieService;
     isSupported: boolean;
+    private fallbackToCookies;
     errors$: Observable<string>;
     removeItems$: Observable<ILocalStorageEvent>;
     setItems$: Observable<ILocalStorageEvent>;
